@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rover Control Panel</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Rover Control Panel</h1>
+
+  <div class="video-container">
+    <!-- Replace src with your actual video stream -->
+    <video src="your-video-stream-url-here" autoplay muted playsinline></video>
+  </div>
+
+  <div class="dpad">
+    <div class="empty"></div>
+    <button onclick="sendCommand('forward')">↑</button>
+    <div class="empty"></div>
+
+    <button onclick="sendCommand('left')">←</button>
+    <button onclick="sendCommand('stop')">■</button>
+    <button onclick="sendCommand('right')">→</button>
+
+    <div class="empty"></div>
+    <button onclick="sendCommand('backward')">↓</button>
+    <div class="empty"></div>
+  </div>
+
+  <script>
+    function sendCommand(direction)
+    {
+      console.log("Command sent:", direction);
+    }
+  </script>
+  
+</body>
+</html>
