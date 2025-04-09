@@ -10,10 +10,9 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <video id="remoteVideo" autoplay playsinline muted></video>
+    <img src="http://192.168.1.229:8000" alt="Live Camera" />
   </div>
-  
-  
+
   <div class="dpad">
     <div class="empty"></div>
     <button onclick="sendCommand('forward')">↑</button>
@@ -34,17 +33,6 @@
       console.log("Command sent:", direction);
     }
   </script>
-
-<script>
-  const remoteVideo = document.getElementById('remoteVideo');
-
-  const pc = new RTCPeerConnection();
-  pc.ontrack = (event) => {
-    remoteVideo.srcObject = event.streams[0];
-  };
-
-  // Use Firebase to exchange offer/answer (see codelab)
-</script>
   
 </body>
 </html>
