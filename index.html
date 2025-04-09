@@ -33,6 +33,17 @@
       console.log("Command sent:", direction);
     }
   </script>
+
+<script>
+  const remoteVideo = document.getElementById('remoteVideo');
+
+  const pc = new RTCPeerConnection();
+  pc.ontrack = (event) => {
+    remoteVideo.srcObject = event.streams[0];
+  };
+
+  // Use Firebase to exchange offer/answer (see codelab)
+</script>
   
 </body>
 </html>
