@@ -10,7 +10,7 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <video src="/stream.py" autoplay muted playsinline></video>
+    <video id="video" autoplay muted playsinline></video>
   </div>
 
   <form action="your-server-endpoint" method="POST" id="commandForm">
@@ -31,6 +31,35 @@
   </form>
 
   <script>
+    let pc = new RTCPeerConnection();
+    const videoElement = document.getElementById('video');
+
+    async function startStreaming() {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const response = await fetch('http://localhost:8080/offer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sdp: offer.sdp })
+      });
+      
+      const data = await response.json();
+      const answerSdp = data.sdp;
+
+      await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: answerSdp }));
+
+      pc.ontrack = (event) => {
+        if (event.track.kind === 'video') {
+          videoElement.srcObject = event.streams[0];
+        }
+      };
+    }
+
+    startStreaming();
+
     function sendCommand(direction) {
       console.log("Command sent:", direction);
       // document.getElementById('commandInput').value = direction;
