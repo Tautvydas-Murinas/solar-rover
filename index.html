@@ -10,60 +10,27 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <video id="video" autoplay muted playsinline></video>
+    <video src="192.168.1.229:8000" autoplay muted playsinline></video>
   </div>
 
-  <form action="your-server-endpoint" method="POST" id="commandForm">
-    <input type="hidden" name="command" id="commandInput" value="" />
-    <div class="dpad">
-      <div class="empty"></div>
-      <button type="button" onclick="sendCommand('forward')">↑</button>
-      <div class="empty"></div>
+  <div class="dpad">
+    <div class="empty"></div>
+    <button onclick="sendCommand('forward')">↑</button>
+    <div class="empty"></div>
 
-      <button type="button" onclick="sendCommand('left')">←</button>
-      <button type="button" onclick="sendCommand('stop')">■</button>
-      <button type="button" onclick="sendCommand('right')">→</button>
+    <button onclick="sendCommand('left')">←</button>
+    <button onclick="sendCommand('stop')">■</button>
+    <button onclick="sendCommand('right')">→</button>
 
-      <div class="empty"></div>
-      <button type="button" onclick="sendCommand('backward')">↓</button>
-      <div class="empty"></div>
-    </div>
-  </form>
+    <div class="empty"></div>
+    <button onclick="sendCommand('backward')">↓</button>
+    <div class="empty"></div>
+  </div>
 
   <script>
-    let pc = new RTCPeerConnection();
-    const videoElement = document.getElementById('video');
-
-    async function startStreaming() {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      const response = await fetch('http://192.168.1.229/offer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ sdp: offer.sdp })
-      });
-      
-      const data = await response.json();
-      const answerSdp = data.sdp;
-
-      await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: answerSdp }));
-
-      pc.ontrack = (event) => {
-        if (event.track.kind === 'video') {
-          videoElement.srcObject = event.streams[0];
-        }
-      };
-    }
-
-    startStreaming();
-
-    function sendCommand(direction) {
+    function sendCommand(direction)
+    {
       console.log("Command sent:", direction);
-      // document.getElementById('commandInput').value = direction;
-      // document.getElementById('commandForm').submit();
     }
   </script>
   

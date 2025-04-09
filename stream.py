@@ -1,5 +1,3 @@
-import asyncio
-import json
 from aiortc import VideoStreamTrack, RTCConfiguration, RTCIceServer, RTCPeerConnection
 from aiohttp import web
 from av import VideoFrame
