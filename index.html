@@ -10,9 +10,10 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <img src="http://192.168.1.229:8080/?action=stream" alt="Live Camera" />
+    <video id="remoteVideo" autoplay playsinline muted></video>
   </div>
-
+  
+  
   <div class="dpad">
     <div class="empty"></div>
     <button onclick="sendCommand('forward')">↑</button>
