@@ -14,24 +14,28 @@
     <video src="your-video-stream-url-here" autoplay muted playsinline></video>
   </div>
 
-  <div class="dpad">
-    <div class="empty"></div>
-    <button onclick="sendCommand('forward')">↑</button>
-    <div class="empty"></div>
+  <form action="your-server-endpoint" method="POST" id="commandForm">
+    <input type="hidden" name="command" id="commandInput" value="" />
+    <div class="dpad">
+      <div class="empty"></div>
+      <button type="button" onclick="sendCommand('forward')">↑</button>
+      <div class="empty"></div>
 
-    <button onclick="sendCommand('left')">←</button>
-    <button onclick="sendCommand('stop')">■</button>
-    <button onclick="sendCommand('right')">→</button>
+      <button type="button" onclick="sendCommand('left')">←</button>
+      <button type="button" onclick="sendCommand('stop')">■</button>
+      <button type="button" onclick="sendCommand('right')">→</button>
 
-    <div class="empty"></div>
-    <button onclick="sendCommand('backward')">↓</button>
-    <div class="empty"></div>
-  </div>
+      <div class="empty"></div>
+      <button type="button" onclick="sendCommand('backward')">↓</button>
+      <div class="empty"></div>
+    </div>
+  </form>
 
   <script>
-    function sendCommand(direction)
-    {
+    function sendCommand(direction) {
       console.log("Command sent:", direction);
+      document.getElementById('commandInput').value = direction;
+      document.getElementById('commandForm').submit();
     }
   </script>
   
