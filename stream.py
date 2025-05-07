@@ -1,4 +1,4 @@
-from aiortc import VideoStreamTrack, RTCConfiguration, RTCIceServer, RTCPeerConnection
+from aiortc import VideoStreamTrack, RTCPeerConnection
 from aiohttp import web
 from av import VideoFrame
 
