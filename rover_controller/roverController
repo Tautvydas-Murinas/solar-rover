@@ -1,0 +1,8 @@
+import serial
+
+arduino = serial.Serial('/dev/ttyACM0', 9600)
+
+def send_command(cmd):
+    arduino.write(cmd.encode())
+
+send_command('F')  # Change to 'S' to stop
