@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rover Control Panel</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="../static/style.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 </head>
@@ -12,7 +12,7 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <!-- <img class="stream" src="http://192.168.1.229:8000/stream.mjpg" muted playsinline> -->
+    <img class="stream" src="http://192.168.1.229:8000/stream.mjpg" muted playsinline>
   </div>
 
   <div class="dpad">
@@ -33,7 +33,7 @@
   </div>
 
   <script>
-    const socket = io('http://localhost:8080');
+    const socket = io('http://192.168.1.229:8080');
 
     socket.on('message', (msg) => {
       const li = document.createElement('li');
