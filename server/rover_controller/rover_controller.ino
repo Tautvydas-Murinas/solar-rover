@@ -21,15 +21,16 @@ void setup() {
 }
 
 void loop() {
-  if (Serial.available()) {
-    char command = Serial.read();
+  moveForward();
+  // if (Serial.available()) {
+  //   char command = Serial.read();
 
-    if (command == 'F') {
-      moveForward();
-    } else if (command == 'S') {
-      stopAllServos();
-    }
-  }
+  //   if (command == 'F') {
+  //     moveForward();
+  //   } else if (command == 'S') {
+  //     stopAllServos();
+  //   }
+  // }
 }
 
 void moveForward() {
