@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
 
 // --- Serial Setup ---
 const port = new SerialPort({
-  path: '/dev/ttyACM1', // Change to match your Arduino's serial port
+  path: '/dev/ttyACM2', // Change to match your Arduino's serial port
   baudRate: 9600
 });
 
