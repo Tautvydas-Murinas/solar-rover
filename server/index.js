@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { SerialPort } = require('serialport');
 
 const server = http.createServer((req, res) => {
   if (req.url === '/') {
@@ -41,17 +42,30 @@ const server = http.createServer((req, res) => {
   }
 });
 
+// --- Serial Setup ---
+const port = new SerialPort({
+  path: '/dev/ttyUSB0', // Change to match your Arduino's serial port
+  baudRate: 9600
+});
+
 const io = require('socket.io')(server, {
   cors: { origin: '*' }
 });
 
 io.on('connection', (socket) => {
-  console.log('a user connected');
+  console.log('A user connected');
 
   socket.on('message', (message) => {
-    console.log(message);
-    io.emit(`${message}`);
+    console.log(`Command from client: ${message}`);
+    
+    // Emit to all clients (optional)
+    io.emit('message', `Command received: ${message}`);
+
+    // Send appropriate char to Arduino
+    if (message === 'forward') port.write('F');
+    else if (message === 'stop') port.write('S');
+    // Add more like 'left', 'right', etc.
   });
 });
 
-server.listen(8080, () => console.log('listening on localhost'));
+server.listen(8080, () => console.log('Listening on http://localhost:8080'));
