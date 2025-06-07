@@ -21,16 +21,15 @@ void setup() {
 }
 
 void loop() {
-  moveForward();
-  // if (Serial.available()) {
-  //   char command = Serial.read();
+  if (Serial.available()) {
+    char command = Serial.read();
 
-  //   if (command == 'F') {
-  //     moveForward();
-  //   } else if (command == 'S') {
-  //     stopAllServos();
-  //   }
-  // }
+    if (command == 'F') {
+      moveForward();
+    } else if (command == 'S') {
+      stopAllServos();
+    }
+  }
 }
 
 void moveForward() {
@@ -45,4 +44,8 @@ void stopAllServos() {
   leftFrontServo.write(stopSpeed);
   rightRearServo.write(stopSpeed);
   leftRearServo.write(stopSpeed);
+}
+
+void servoDirection() {
+  
 }
