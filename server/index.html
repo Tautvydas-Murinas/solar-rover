@@ -1,51 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rover Control Panel</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<div class="video-container">
+  <video id="video" autoplay playsinline muted></video>
+</div>
 
-</head>
-<body>
+<script>
+  const video = document.getElementById('video');
+  const socket = io('http://192.168.1.229:8080');
 
-  <h1>Rover Control Panel</h1>
+  async function startWebRTC() {
+    const pc = new RTCPeerConnection();
 
-  <div class="video-container">
-    <img class="stream" src="http://192.168.1.229:8000/stream.mjpg" muted playsinline>
-  </div>
+    pc.ontrack = (event) => {
+      video.srcObject = event.streams[0];
+    };
 
-  <div class="dpad">
-    <div class="empty"></div>
-    <button onmousedown="send('forward')">↑</button>
-    <div class="empty"></div>
-    <button onmousedown="send('left')">←</button>
-    <button onmousedown="send('stop')">■</button>
-    <button onmousedown="send('right')">→</button>
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
-    <div class="empty"></div>
-    <button onmousedown="send('backward')">↓</button>
-    <div class="empty"></div>
-
-    <ul id="log"></ul>
-
-  </div>
-
-  <script>
-    const socket = io('http://192.168.1.229:8080');
-
-    socket.on('message', (msg) => {
-      const li = document.createElement('li');
-      li.textContent = msg;
-      const log = document.getElementById('log');
-      if (log) log.appendChild(li);
+    const response = await fetch('http://192.168.1.229:8080/offer', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(pc.localDescription),
     });
 
-    function send(command) {
-      console.log(`You pressed: ${command}`);
-      socket.emit('message', command);
-    }
-  </script>
-</body>
-</html>
+    const answer = await response.json();
+    await pc.setRemoteDescription(answer);
+  }
+
+  startWebRTC();
+
+  socket.on('message', (msg) => {
+    const li = document.createElement('li');
+    li.textContent = msg;
+    const log = document.getElementById('log');
+    if (log) log.appendChild(li);
+  });
+
+  function send(command) {
+    console.log(`You pressed: ${command}`);
+    socket.emit('message', command);
+  }
+</script>
