@@ -39,4 +39,4 @@ app.post('/offer', async (req, res) => {
   res.json(pc.localDescription);
 });
 
-app.listen(8000, () => console.log('WebRTC server running on port 8080'));
+app.listen(8080, () => console.log('WebRTC server running on port 8080'));
