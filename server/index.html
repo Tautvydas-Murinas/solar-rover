@@ -49,7 +49,8 @@
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      const response = await fetch('http://192.168.1.229:8080/offer', {
+      const response = await fetch('http://192.168.1.229:8000/offer', {
+
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pc.localDescription),
@@ -63,8 +64,6 @@
   </script>
 
   <script>
-
-    
     const socket = io('http://192.168.1.229:8080');
 
     socket.on('message', (msg) => {
