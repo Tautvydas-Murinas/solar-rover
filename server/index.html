@@ -35,6 +35,36 @@
   </div>
 
   <script>
+    async function startWebRTC() {
+      const pc = new RTCPeerConnection();
+
+      pc.ontrack = (event) => {
+        const video = document.getElementById('video');
+        if (video.srcObject !== event.streams[0]) {
+          video.srcObject = event.streams[0];
+        }
+      };
+
+      // Create offer and send to server
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const response = await fetch('http://192.168.1.229:8000/offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pc.localDescription),
+      });
+
+      const answer = await response.json();
+      await pc.setRemoteDescription(answer);
+    }
+
+    startWebRTC().catch(console.error);
+  </script>
+
+  <script>
+
+    
     const socket = io('http://192.168.1.229:8080');
 
     socket.on('message', (msg) => {
