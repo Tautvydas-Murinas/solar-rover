@@ -14,6 +14,7 @@ function getBlankFrame() {
   return new RTCVideoFrame(data, width, height);
 }
 
+
 app.post('/offer', async (req, res) => {
   const pc = new RTCPeerConnection();
   const track = videoSource.createTrack();
