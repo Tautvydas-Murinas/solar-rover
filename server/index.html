@@ -34,7 +34,6 @@
   </div>
 
   <script>
-
     // Connect to the Socket.IO server
     
     const socket = io('http://192.168.1.229:8080');
@@ -47,7 +46,7 @@
     });
 
     function send(command) {
-      // console.log(`You pressed: ${command}`);
+      console.log(`You pressed: ${command}`);
       socket.emit('message', command);
     }
   </script>
