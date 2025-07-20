@@ -35,8 +35,8 @@
   </div>
 
   <script>
-    // Connect to the Socket.IO server
     
+    // Connect to the Socket.IO server
     const socket = io('http://192.168.1.229:8080');
 
     socket.on('message', (msg) => {
@@ -52,32 +52,27 @@
     }
 
     async function startWebRTC() {
-    const video = document.getElementById('video');
-    const pc = new RTCPeerConnection();
+      const video = document.getElementById('video');
+      const pc = new RTCPeerConnection();
 
-    // When remote track arrives, show it in the video element
-    pc.ontrack = (event) => {
-      video.srcObject = event.streams[0];
-    };
+      pc.ontrack = (event) => {
+        video.srcObject = event.streams[0];
+      };
 
-    // Create WebRTC offer and set local description
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
 
-    // Send offer SDP to your Python server
-    const response = await fetch('http://192.168.1.229:8000/offer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
-    });
+      const response = await fetch('http://192.168.1.229:8000/offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
+      });
 
-    const answer = await response.json();
+      const answer = await response.json();
+      await pc.setRemoteDescription(answer);
+    }
 
-    // Set remote description from the answer SDP
-    await pc.setRemoteDescription(answer);
-  }
-
-  startWebRTC().catch(console.error);
+    startWebRTC().catch(console.error);
 
   </script>
 
