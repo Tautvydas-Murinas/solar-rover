@@ -15,9 +15,8 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <video id="video" autoplay playsinline controls style="width:640px; height:480px;"></video>
+    <img src="http://192.168.1.229:8000/stream.mjpg">
   </div>
-
 
   <div class="dpad">
     <div class="empty"></div>
@@ -35,8 +34,8 @@
   </div>
 
   <script>
-    
     // Connect to the Socket.IO server
+    
     const socket = io('http://192.168.1.229:8080');
 
     socket.on('message', (msg) => {
@@ -50,30 +49,6 @@
       console.log(`You pressed: ${command}`);
       socket.emit('message', command);
     }
-
-    async function startWebRTC() {
-      const video = document.getElementById('video');
-      const pc = new RTCPeerConnection();
-
-      pc.ontrack = (event) => {
-        video.srcObject = event.streams[0];
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      const response = await fetch('http://192.168.1.229:8000/offer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
-      });
-
-      const answer = await response.json();
-      await pc.setRemoteDescription(answer);
-    }
-
-    startWebRTC().catch(console.error);
-
   </script>
 
 </body>
