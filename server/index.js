@@ -69,3 +69,27 @@ io.on('connection', (socket) => {
 });
 
 server.listen(8080, () => console.log('Listening on http://localhost:8080'));
+
+const { RTCPeerConnection, RTCSessionDescription, MediaStreamTrack } = require('wrtc');
+
+server.on('request', async (req, res) => {
+  if (req.method === 'POST' && req.url === '/offer') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      const offer = JSON.parse(body);
+      const pc = new RTCPeerConnection();
+
+      // TODO: Add real video track here (fake track below)
+      const videoTrack = new MediaStreamTrack({ kind: 'video' });
+      pc.addTrack(videoTrack);
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(pc.localDescription));
+    });
+  }
+});
