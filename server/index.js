@@ -2,8 +2,20 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { SerialPort } = require('serialport');
+const { RTCPeerConnection, RTCSessionDescription, MediaStreamTrack } = require('wrtc');
 
 const server = http.createServer((req, res) => {
+  if (req.method === 'OPTIONS' && req.url === '/offer') {
+    // Handle CORS preflight for /offer
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': 86400,
+    });
+    return res.end();
+  }
+
   if (req.url === '/') {
     const filePath = path.join(__dirname, 'index.html');
     fs.readFile(filePath, (err, data) => {
@@ -36,6 +48,38 @@ const server = http.createServer((req, res) => {
         res.end(data);
       }
     });
+  } else if (req.method === 'POST' && req.url === '/offer') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const offer = JSON.parse(body);
+        const pc = new RTCPeerConnection();
+
+        // TODO: Add real video track here
+        // For example, connect to your camera source and create a MediaStreamTrack
+        // const videoTrack = yourRealVideoTrack;
+        // pc.addTrack(videoTrack);
+
+        // For now, add a fake video track (will NOT show real video)
+        const videoTrack = new MediaStreamTrack({ kind: 'video' });
+        pc.addTrack(videoTrack);
+
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify(pc.localDescription));
+      } catch (e) {
+        console.error('Error handling /offer:', e);
+        res.writeHead(500);
+        res.end('Internal Server Error');
+      }
+    });
   } else {
     res.writeHead(404);
     res.end('Not Found');
@@ -44,7 +88,7 @@ const server = http.createServer((req, res) => {
 
 // --- Serial Setup ---
 const port = new SerialPort({
-  path: '/dev/ttyACM1', // Change to match your Arduino's serial port
+  path: '/dev/ttyACM1', // Change to your Arduino serial port
   baudRate: 9600
 });
 
@@ -57,39 +101,13 @@ io.on('connection', (socket) => {
 
   socket.on('message', (message) => {
     console.log(`Command from client: ${message}`);
-    
-    // Emit to all clients (optional)
+
     io.emit('message', `Command received: ${message}`);
 
-    // Send appropriate char to Arduino
     if (message === 'forward') port.write('F');
     else if (message === 'stop') port.write('S');
-    // Add more like 'left', 'right', etc.
+    // Add other commands as needed
   });
 });
 
 server.listen(8080, () => console.log('Listening on http://localhost:8080'));
-
-const { RTCPeerConnection, RTCSessionDescription, MediaStreamTrack } = require('wrtc');
-
-server.on('request', async (req, res) => {
-  if (req.method === 'POST' && req.url === '/offer') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-      const offer = JSON.parse(body);
-      const pc = new RTCPeerConnection();
-
-      // TODO: Add real video track here (fake track below)
-      const videoTrack = new MediaStreamTrack({ kind: 'video' });
-      pc.addTrack(videoTrack);
-
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(pc.localDescription));
-    });
-  }
-});
