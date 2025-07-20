@@ -86,11 +86,6 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// --- Serial Setup ---
-const port = new SerialPort({
-  path: '/dev/ttyACM1', // Change to your Arduino serial port
-  baudRate: 9600
-});
 
 const io = require('socket.io')(server, {
   cors: { origin: '*' }
