@@ -15,8 +15,9 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <img src="http://192.168.1.229:8000/stream.mjpg">
+    <video id="video" autoplay playsinline controls style="width:640px; height:480px;"></video>
   </div>
+
 
   <div class="dpad">
     <div class="empty"></div>
@@ -49,6 +50,35 @@
       console.log(`You pressed: ${command}`);
       socket.emit('message', command);
     }
+
+    async function startWebRTC() {
+    const video = document.getElementById('video');
+    const pc = new RTCPeerConnection();
+
+    // When remote track arrives, show it in the video element
+    pc.ontrack = (event) => {
+      video.srcObject = event.streams[0];
+    };
+
+    // Create WebRTC offer and set local description
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Send offer SDP to your Python server
+    const response = await fetch('http://192.168.1.229:8000/offer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
+    });
+
+    const answer = await response.json();
+
+    // Set remote description from the answer SDP
+    await pc.setRemoteDescription(answer);
+  }
+
+  startWebRTC().catch(console.error);
+
   </script>
 
 </body>
