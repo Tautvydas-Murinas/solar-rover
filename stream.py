@@ -22,13 +22,11 @@ class PiCameraStream(VideoStreamTrack):
 
 async def offer(request):
     if request.method == "OPTIONS":
-        # Reply to preflight request
-        headers = {
+        return web.Response(status=204, headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
-        return web.Response(status=204, headers=headers)
+            "Access-Control-Allow-Headers": "Content-Type"
+        })
 
     params = await request.json()
     offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
@@ -41,15 +39,17 @@ async def offer(request):
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
 
-    headers = {
+    return web.json_response({
+        'sdp': pc.localDescription.sdp,
+        'type': pc.localDescription.type
+    }, headers={
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-    }
-    return web.json_response({'sdp': pc.localDescription.sdp, 'type': pc.localDescription.type}, headers=headers)
+        "Access-Control-Allow-Headers": "Content-Type"
+    })
 
 app = web.Application()
-app.router.add_route("*", "/offer", offer)
+app.router.add_route('*', '/offer', offer)
 
 if __name__ == "__main__":
     web.run_app(app, host="0.0.0.0", port=8000)
