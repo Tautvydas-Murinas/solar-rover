@@ -1,33 +1,34 @@
-from flask import Flask, Response
-import cv2
+from aiortc import VideoStreamTrack, RTCConfiguration, RTCIceServer, RTCPeerConnection
+from aiohttp import web
+from av import VideoFrame
 
-app = Flask(__name__)
+def get_camera_frame():
+    return VideoFrame.from_ndarray(np.zeros((720, 1280, 3), dtype=np.uint8), format='bgr24')
 
-# Open libcamera with OpenCV (works with Ubuntu Server)
-camera = cv2.VideoCapture(0)
+class PiCameraStream(VideoStreamTrack):
+    def __init__(self):
+        super().__init__()
+        self._frame = None
 
-def gen_frames():
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-        _, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    async def recv(self):
+        frame = get_camera_frame()
+        return frame
 
-@app.route('/')
-@app.route('/index.html')
-def index():
-    return """<html><body>
-              <h1>Raspberry Pi Camera Stream (OpenCV)</h1>
-              <img src="/video_feed" width="640" height="480" />
-              </body></html>"""
+async def offer(request):
+    params = await request.json()
+    offer_sdp = params['sdp']
+    pc = RTCPeerConnection()
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    local_video_track = PiCameraStream()
+    pc.addTrack(local_video_track)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    await pc.setRemoteDescription(offer_sdp)
+
+    answer_sdp = await pc.createAnswer()
+    await pc.setLocalDescription(answer_sdp)
+
+    return web.json_response({'sdp': pc.localDescription.sdp})
+
+app = web.Application()
+app.router.add_post("/offer", offer)
+web.run_app(app, port=8080)
