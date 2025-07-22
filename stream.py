@@ -20,7 +20,8 @@ class PiCameraStream(VideoStreamTrack):
         video_frame.time_base = time_base
         return video_frame
 
-async def offer(request):
+@web.middleware
+async def cors_middleware(request, handler):
     if request.method == "OPTIONS":
         return web.Response(status=204, headers={
             "Access-Control-Allow-Origin": "*",
@@ -28,6 +29,13 @@ async def offer(request):
             "Access-Control-Allow-Headers": "Content-Type"
         })
 
+    response = await handler(request)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+async def offer(request):
     params = await request.json()
     offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
 
@@ -42,13 +50,9 @@ async def offer(request):
     return web.json_response({
         'sdp': pc.localDescription.sdp,
         'type': pc.localDescription.type
-    }, headers={
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
     })
 
-app = web.Application()
+app = web.Application(middlewares=[cors_middleware])
 app.router.add_route('*', '/offer', offer)
 
 if __name__ == "__main__":
