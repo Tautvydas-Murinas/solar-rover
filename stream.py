@@ -1,38 +1,33 @@
-from aiohttp import web
-import cv2
+from flask import Flask, Response
+import io
+import picamera
 
-cap = cv2.VideoCapture(0)
+app = Flask(__name__)
 
-async def mjpeg_handler(request):
-    response = web.StreamResponse(
-        status=200,
-        reason='OK',
-        headers={
-            'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-        }
-    )
-    await response.prepare(request)
+def gen():
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 24
+        stream = io.BytesIO()
+        for _ in camera.capture_continuous(stream, 'jpeg', use_video_port=True):
+            stream.seek(0)
+            frame = stream.read()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            stream.seek(0)
+            stream.truncate()
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        _, jpeg = cv2.imencode('.jpg', frame)
-        jpg_bytes = jpeg.tobytes()
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
-        await response.write(b'--frame\r\n')
-        await response.write(b'Content-Type: image/jpeg\r\n')
-        await response.write(f'Content-Length: {len(jpg_bytes)}\r\n\r\n'.encode())
-        await response.write(jpg_bytes)
-        await response.write(b'\r\n')
+@app.route('/')
+def index():
+    return """<html><body>
+              <h1>Raspberry Pi Camera Stream</h1>
+              <img src="/video_feed" width="640" height="480" />
+              </body></html>"""
 
-        await asyncio.sleep(0.05)  # ~20 FPS
-
-    return response
-
-app = web.Application()
-app.router.add_get('/stream', mjpeg_handler)
-
-web.run_app(app, host='0.0.0.0', port=8000)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, threaded=True)
