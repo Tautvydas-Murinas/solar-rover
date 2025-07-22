@@ -17,17 +17,17 @@ def gen():
             stream.seek(0)
             stream.truncate()
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
 @app.route('/')
 def index():
     return """<html><body>
               <h1>Raspberry Pi Camera Stream</h1>
               <img src="/video_feed" width="640" height="480" />
               </body></html>"""
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, threaded=True)
