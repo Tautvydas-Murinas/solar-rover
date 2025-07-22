@@ -97,7 +97,7 @@ io.on('connection', (socket) => {
   socket.on('message', (message) => {
     console.log(`Command from client: ${message}`);
 
-    io.emit('message', `Command received: ${message}`);
+    // io.emit('message', `Command received: ${message}`);
 
     if (message === 'forward') port.write('F');
     else if (message === 'stop') port.write('S');

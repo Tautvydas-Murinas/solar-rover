@@ -1,54 +1,38 @@
 from aiohttp import web
 import cv2
-import numpy as np
-from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
-from av import VideoFrame
 
 cap = cv2.VideoCapture(0)
 
-class PiCameraStream(VideoStreamTrack):
-    def __init__(self):
-        super().__init__()
+async def mjpeg_handler(request):
+    response = web.StreamResponse(
+        status=200,
+        reason='OK',
+        headers={
+            'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        }
+    )
+    await response.prepare(request)
 
-    async def recv(self):
-        pts, time_base = await self.next_timestamp()
+    while True:
         ret, frame = cap.read()
         if not ret:
-            frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
-        video_frame.pts = pts
-        video_frame.time_base = time_base
-        return video_frame
+            break
+        _, jpeg = cv2.imencode('.jpg', frame)
+        jpg_bytes = jpeg.tobytes()
 
-async def offer(request):
-    if request.method == "OPTIONS":
-        return web.Response(status=204, headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        })
+        await response.write(b'--frame\r\n')
+        await response.write(b'Content-Type: image/jpeg\r\n')
+        await response.write(f'Content-Length: {len(jpg_bytes)}\r\n\r\n'.encode())
+        await response.write(jpg_bytes)
+        await response.write(b'\r\n')
 
-    params = await request.json()
-    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+        await asyncio.sleep(0.05)  # ~20 FPS
 
-    pc = RTCPeerConnection()
-    pc.addTrack(PiCameraStream())
-
-    await pc.setRemoteDescription(offer)
-    answer = await pc.createAnswer()
-    await pc.setLocalDescription(answer)
-
-    return web.json_response({
-        "sdp": pc.localDescription.sdp,
-        "type": pc.localDescription.type
-    }, headers={
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-    })
+    return response
 
 app = web.Application()
-app.router.add_route("POST", "/offer", offer)
-app.router.add_route("OPTIONS", "/offer", offer)
+app.router.add_get('/stream', mjpeg_handler)
 
-web.run_app(app, host="0.0.0.0", port=8000)
+web.run_app(app, host='0.0.0.0', port=8000)
