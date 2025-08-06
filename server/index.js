@@ -4,7 +4,7 @@ const path = require('path');
 const { Server } = require('socket.io');
 const { SerialPort } = require('serialport');
 
-const portName = '/dev/ttyACM1';  // Arduino serial port
+const portName = '/dev/ttyACM0';  // Arduino serial port
 const serialPort = new SerialPort({
   path: portName,
   baudRate: 9600,
