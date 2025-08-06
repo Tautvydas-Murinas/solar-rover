@@ -2,6 +2,23 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Server } = require('socket.io');
+const { SerialPort } = require('serialport');
+
+const portName = '/dev/ttyACM0';  // Arduino serial port
+const serialPort = new SerialPort({
+  path: portName,
+  baudRate: 9600,
+  autoOpen: false,
+});
+
+// Open serial port
+serialPort.open((err) => {
+  if (err) {
+    console.error('Error opening serial port:', err.message);
+  } else {
+    console.log(`Serial port opened on ${portName}`);
+  }
+});
 
 const server = http.createServer((req, res) => {
   if (req.url === '/') {
@@ -42,13 +59,6 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// Replace this with your actual serial port logic
-const port = {
-  write: (cmd) => {
-    console.log(`Pretend sending command to serial: ${cmd}`);
-  }
-};
-
 const io = new Server(server, {
   cors: { origin: '*' }
 });
@@ -58,11 +68,28 @@ io.on('connection', (socket) => {
 
   socket.on('message', (message) => {
     console.log(`Command from client: ${message}`);
-    if (message === 'forward') port.write('F');
-    else if (message === 'stop') port.write('S');
-    else if (message === 'left') port.write('L');
-    else if (message === 'right') port.write('R');
-    else if (message === 'backward') port.write('B');
+
+    let cmd = '';
+    if (message === 'forward') cmd = 'F';
+    else if (message === 'stop') cmd = 'S';
+    else if (message === 'left') cmd = 'L';
+    else if (message === 'right') cmd = 'R';
+    else if (message === 'backward') cmd = 'B';
+
+    if (cmd) {
+      if (serialPort.isOpen) {
+        serialPort.write(cmd, (err) => {
+          if (err) console.error('Error writing to serial port:', err.message);
+          else console.log(`Sent to Arduino: ${cmd}`);
+        });
+      } else {
+        console.log('Serial port not open');
+      }
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
   });
 });
 
