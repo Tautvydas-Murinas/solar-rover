@@ -1,34 +1,60 @@
-from aiortc import VideoStreamTrack, RTCConfiguration, RTCIceServer, RTCPeerConnection
+import cv2
+import numpy as np
+from aiortc import VideoStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiohttp import web
 from av import VideoFrame
-
-def get_camera_frame():
-    return VideoFrame.from_ndarray(np.zeros((720, 1280, 3), dtype=np.uint8), format='bgr24')
+import aiohttp_cors
+import asyncio
 
 class PiCameraStream(VideoStreamTrack):
     def __init__(self):
         super().__init__()
-        self._frame = None
+        self.cap = cv2.VideoCapture(0)  # Pi camera usually maps to /dev/video0
 
     async def recv(self):
-        frame = get_camera_frame()
-        return frame
+        pts, time_base = await self.next_timestamp()
+        ret, frame = self.cap.read()
+        if not ret:
+            await asyncio.sleep(0.01)
+            return await self.recv()
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        video_frame = VideoFrame.from_ndarray(frame, format='rgb24')
+        video_frame.pts = pts
+        video_frame.time_base = time_base
+        return video_frame
+
+pcs = set()
 
 async def offer(request):
     params = await request.json()
-    offer_sdp = params['sdp']
+    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+
     pc = RTCPeerConnection()
+    pcs.add(pc)
 
-    local_video_track = PiCameraStream()
-    pc.addTrack(local_video_track)
+    pc.addTrack(PiCameraStream())
+    await pc.setRemoteDescription(offer)
 
-    await pc.setRemoteDescription(offer_sdp)
+    answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
 
-    answer_sdp = await pc.createAnswer()
-    await pc.setLocalDescription(answer_sdp)
-
-    return web.json_response({'sdp': pc.localDescription.sdp})
+    return web.json_response({
+        "sdp": pc.localDescription.sdp,
+        "type": pc.localDescription.type
+    })
 
 app = web.Application()
 app.router.add_post("/offer", offer)
-web.run_app(app, port=8080)
+
+# CORS setup
+cors = aiohttp_cors.setup(app, defaults={
+    "*": aiohttp_cors.ResourceOptions(
+        allow_credentials=True,
+        expose_headers="*",
+        allow_headers="*",
+    )
+})
+for route in list(app.router.routes()):
+    cors.add(route)
+
+web.run_app(app, host="0.0.0.0", port=8000)
