@@ -64,17 +64,11 @@
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // const response = await fetch('http://192.168.1.229:8000/offer', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
-    // });
 
     const answer = await response.json();
     await pc.setRemoteDescription(answer);
   }
 
-  startWebRTC().catch(console.error);
   </script>
 </body>
 </html>
