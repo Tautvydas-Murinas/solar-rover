@@ -1,20 +1,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { RTCPeerConnection, RTCSessionDescription, MediaStreamTrack } = require('wrtc');
+const { Server } = require('socket.io');
 
 const server = http.createServer((req, res) => {
-  if (req.method === 'OPTIONS' && req.url === '/offer') {
-    // Handle CORS preflight for /offer
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Max-Age': 86400,
-    });
-    return res.end();
-  }
-
   if (req.url === '/') {
     const filePath = path.join(__dirname, 'index.html');
     fs.readFile(filePath, (err, data) => {
@@ -47,41 +36,20 @@ const server = http.createServer((req, res) => {
         res.end(data);
       }
     });
-  } else if (req.method === 'POST' && req.url === '/offer') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-      try {
-        const offer = JSON.parse(body);
-        const pc = new RTCPeerConnection();
-
- 
-        const videoTrack = new MediaStreamTrack({ kind: 'video' });
-        pc.addTrack(videoTrack);
-
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        });
-        res.end(JSON.stringify(pc.localDescription));
-      } catch (e) {
-        console.error('Error handling /offer:', e);
-        res.writeHead(500);
-        res.end('Internal Server Error');
-      }
-    });
   } else {
     res.writeHead(404);
     res.end('Not Found');
   }
 });
 
+// Replace this with your actual serial port logic
+const port = {
+  write: (cmd) => {
+    console.log(`Pretend sending command to serial: ${cmd}`);
+  }
+};
 
-const io = require('socket.io')(server, {
+const io = new Server(server, {
   cors: { origin: '*' }
 });
 
@@ -90,13 +58,14 @@ io.on('connection', (socket) => {
 
   socket.on('message', (message) => {
     console.log(`Command from client: ${message}`);
-
-    // io.emit('message', `Command received: ${message}`);
-
     if (message === 'forward') port.write('F');
     else if (message === 'stop') port.write('S');
-    // Add other commands as needed
+    else if (message === 'left') port.write('L');
+    else if (message === 'right') port.write('R');
+    else if (message === 'backward') port.write('B');
   });
 });
 
-server.listen(8080, () => console.log('Listening on http://192.168.1.229:8080'));
+server.listen(8080, () => {
+  console.log('Listening on http://192.168.1.229:8080');
+});
