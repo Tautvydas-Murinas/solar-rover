@@ -1,7 +1,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { SerialPort } = require('serialport');
 const { RTCPeerConnection, RTCSessionDescription, MediaStreamTrack } = require('wrtc');
 
 const server = http.createServer((req, res) => {
@@ -56,12 +55,7 @@ const server = http.createServer((req, res) => {
         const offer = JSON.parse(body);
         const pc = new RTCPeerConnection();
 
-        // TODO: Add real video track here
-        // For example, connect to your camera source and create a MediaStreamTrack
-        // const videoTrack = yourRealVideoTrack;
-        // pc.addTrack(videoTrack);
-
-        // For now, add a fake video track (will NOT show real video)
+ 
         const videoTrack = new MediaStreamTrack({ kind: 'video' });
         pc.addTrack(videoTrack);
 
