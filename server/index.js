@@ -4,21 +4,23 @@ const path = require('path');
 const { Server } = require('socket.io');
 const { SerialPort } = require('serialport');
 
-const portName = '/dev/ttyACM0';  // Arduino serial port
-const serialPort = new SerialPort({
-  path: portName,
-  baudRate: 9600,
-  autoOpen: false,
-});
 
-// Open serial port
-serialPort.open((err) => {
-  if (err) {
-    console.error('Error opening serial port:', err.message);
-  } else {
-    console.log(`Serial port opened on ${portName}`);
-  }
-});
+// const portName = '/dev/ttyACM0';  // Arduino serial port
+// const serialPort = new SerialPort({
+//   path: portName,
+//   baudRate: 9600,
+//   autoOpen: false,
+// });
+
+
+// // Open serial port
+// serialPort.open((err) => {
+//   if (err) {
+//     console.error('Error opening serial port:', err.message);
+//   } else {
+//     console.log(`Serial port opened on ${portName}`);
+//   }
+// });
 
 const server = http.createServer((req, res) => {
   if (req.url === '/') {
@@ -76,16 +78,16 @@ io.on('connection', (socket) => {
     else if (message === 'right') cmd = 'R';
     else if (message === 'backward') cmd = 'B';
 
-    if (cmd) {
-      if (serialPort.isOpen) {
-        serialPort.write(cmd, (err) => {
-          if (err) console.error('Error writing to serial port:', err.message);
-          else console.log(`Sent to Arduino: ${cmd}`);
-        });
-      } else {
-        console.log('Serial port not open');
-      }
-    }
+    // if (cmd) {
+    //   if (serialPort.isOpen) {
+    //     serialPort.write(cmd, (err) => {
+    //       if (err) console.error('Error writing to serial port:', err.message);
+    //       else console.log(`Sent to Arduino: ${cmd}`);
+    //     });
+    //   } else {
+    //     console.log('Serial port not open');
+    //   }
+    // }
   });
 
   socket.on('disconnect', () => {
