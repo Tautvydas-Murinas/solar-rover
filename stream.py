@@ -1,49 +1,35 @@
-
-# MJPEG streaming server for Pi Camera
+from flask import Flask, Response
+from picamera2 import Picamera2
 import cv2
-from aiohttp import web
-import asyncio
 
-async def mjpeg_handler(request):
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        return web.Response(status=500, text="Camera not found")
+app = Flask(__name__)
 
-    response = web.StreamResponse(
-        status=200,
-        reason='OK',
-        headers={
-            'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
-        }
-    )
-    await response.prepare(request)
+picam2 = Picamera2()
+config = picam2.create_video_configuration(main={"size": (640, 480)})
+picam2.configure(config)
+picam2.start()
 
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                await asyncio.sleep(0.1)
-                continue
-            ret, jpeg = cv2.imencode('.jpg', frame)
-            if not ret:
-                await asyncio.sleep(0.1)
-                continue
-            data = jpeg.tobytes()
-            await response.write(b'--frame\r\n')
-            await response.write(b'Content-Type: image/jpeg\r\n')
-            await response.write(f'Content-Length: {len(data)}\r\n\r\n'.encode())
-            await response.write(data)
-            await response.write(b'\r\n')
-            await asyncio.sleep(0.05)  # ~20 FPS
-    except asyncio.CancelledError:
-        pass
-    finally:
-        cap.release()
-        await response.write_eof()
-    return response
 
-app = web.Application()
-app.router.add_get('/stream.mjpg', mjpeg_handler)
+def gen_frames():
+    while True:
+        frame = picam2.capture_array()
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+@app.route('/')
+def index():
+    return "<img src='/video'>"
+
+
+@app.route('/video')
+def video():
+    return Response(gen_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 if __name__ == '__main__':
-    web.run_app(app, host='192.168.1.229', port=8000)
+    app.run(host='0.0.0.0', port=5000, threaded=True)
