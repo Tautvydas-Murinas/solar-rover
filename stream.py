@@ -1,60 +1,49 @@
+
+# MJPEG streaming server for Pi Camera
 import cv2
-import numpy as np
-from aiortc import VideoStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiohttp import web
-from av import VideoFrame
-import aiohttp_cors
 import asyncio
 
-class PiCameraStream(VideoStreamTrack):
-    def __init__(self):
-        super().__init__()
-        self.cap = cv2.VideoCapture(0)  # Pi camera usually maps to /dev/video0
+async def mjpeg_handler(request):
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        return web.Response(status=500, text="Camera not found")
 
-    async def recv(self):
-        pts, time_base = await self.next_timestamp()
-        ret, frame = self.cap.read()
-        if not ret:
-            await asyncio.sleep(0.01)
-            return await self.recv()
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        video_frame = VideoFrame.from_ndarray(frame, format='rgb24')
-        video_frame.pts = pts
-        video_frame.time_base = time_base
-        return video_frame
+    response = web.StreamResponse(
+        status=200,
+        reason='OK',
+        headers={
+            'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
+        }
+    )
+    await response.prepare(request)
 
-pcs = set()
-
-async def offer(request):
-    params = await request.json()
-    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
-
-    pc = RTCPeerConnection()
-    pcs.add(pc)
-
-    pc.addTrack(PiCameraStream())
-    await pc.setRemoteDescription(offer)
-
-    answer = await pc.createAnswer()
-    await pc.setLocalDescription(answer)
-
-    return web.json_response({
-        "sdp": pc.localDescription.sdp,
-        "type": pc.localDescription.type
-    })
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                await asyncio.sleep(0.1)
+                continue
+            ret, jpeg = cv2.imencode('.jpg', frame)
+            if not ret:
+                await asyncio.sleep(0.1)
+                continue
+            data = jpeg.tobytes()
+            await response.write(b'--frame\r\n')
+            await response.write(b'Content-Type: image/jpeg\r\n')
+            await response.write(f'Content-Length: {len(data)}\r\n\r\n'.encode())
+            await response.write(data)
+            await response.write(b'\r\n')
+            await asyncio.sleep(0.05)  # ~20 FPS
+    except asyncio.CancelledError:
+        pass
+    finally:
+        cap.release()
+        await response.write_eof()
+    return response
 
 app = web.Application()
-app.router.add_post("/offer", offer)
+app.router.add_get('/stream.mjpg', mjpeg_handler)
 
-# CORS setup
-cors = aiohttp_cors.setup(app, defaults={
-    "*": aiohttp_cors.ResourceOptions(
-        allow_credentials=True,
-        expose_headers="*",
-        allow_headers="*",
-    )
-})
-for route in list(app.router.routes()):
-    cors.add(route)
-
-web.run_app(app, host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    web.run_app(app, host='0.0.0.0', port=8000)
