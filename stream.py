@@ -1,8 +1,5 @@
-from picamera2 import Picamera2
+import subprocess
 
-picam2 = Picamera2()
-picam2.start()
-image = picam2.capture_array()
-from PIL import Image
-Image.fromarray(image).save("test.jpg")
-picam2.stop()
+# Take a photo with the Pi camera
+subprocess.run(["libcamera-still", "-t", "1000", "-o", "test.jpg"])
+print("Saved image as test.jpg")
