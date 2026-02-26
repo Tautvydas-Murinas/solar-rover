@@ -96,5 +96,5 @@ io.on('connection', (socket) => {
 });
 
 server.listen(8080, () => {
-  console.log('Listening on http://192.168.1.231:8080');
+  console.log('Listening on http://192.168.1.229:8080');
 });
