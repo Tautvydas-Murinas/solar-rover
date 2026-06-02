@@ -15,7 +15,7 @@
   <h1>Rover Control Panel</h1>
 
   <div class="video-container">
-    <img src="http://192.168.1.231:8000/stream.mjpg" width="100%" height="auto" />
+    <img class="stream" src="/stream.mjpg" alt="Rover camera" />
   </div>
 
   <div class="dpad">
@@ -35,7 +35,7 @@
 
   <script>
 
-    const socket = io('http://192.168.1.231:8080');
+    const socket = io();
 
     socket.on('message', (msg) => {
       const li = document.createElement('li');
