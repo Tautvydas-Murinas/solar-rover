@@ -77,12 +77,11 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                 if not frame:
                     continue
                 self.wfile.write(b"--FRAME\r\n")
-                self.send_header("Content-Type", "image/jpeg")
-                self.send_header("Content-Length", str(len(frame)))
-                self.endheaders()
+                self.wfile.write(b"Content-Type: image/jpeg\r\n")
+                self.wfile.write(f"Content-Length: {len(frame)}\r\n\r\n".encode())
                 self.wfile.write(frame)
                 self.wfile.write(b"\r\n")
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, OSError):
             pass
 
 
