@@ -14,41 +14,110 @@
 
   <h1>Rover Control Panel</h1>
 
+  <p id="arduino-status" class="status offline">Arduino: checking…</p>
+
   <div class="video-container">
-    <img class="stream" src="/stream.mjpg" alt="Rover camera" />
+    <img id="stream" class="stream" src="/stream.mjpg" alt="Rover camera" />
   </div>
 
   <div class="dpad">
     <div class="empty"></div>
-    <button onclick="send('forward')">↑</button>
+    <button data-cmd="forward">↑</button>
     <div class="empty"></div>
-    <button onclick="send('left')">←</button>
-    <button onclick="send('stop')">■</button>
-    <button onclick="send('right')">→</button>
-
+    <button data-cmd="left">←</button>
+    <button data-cmd="stop">■</button>
+    <button data-cmd="right">→</button>
     <div class="empty"></div>
-    <button onclick="send('backward')">↓</button>
+    <button data-cmd="backward">↓</button>
     <div class="empty"></div>
-
-    <ul id="log"></ul>
   </div>
 
+  <p class="hint">Hold a direction button to drive. Release to stop.</p>
+
+  <ul id="log"></ul>
+
   <script>
-
-    const socket = io();
-
-    socket.on('message', (msg) => {
-      const li = document.createElement('li');
-      li.textContent = msg;
-      const log = document.getElementById('log');
-      if (log) log.appendChild(li);
+    const streamImg = document.getElementById('stream');
+    streamImg.addEventListener('error', () => {
+      const fallback = `${location.protocol}//${location.hostname}:8000/stream.mjpg`;
+      if (streamImg.src !== fallback) {
+        streamImg.src = fallback;
+      }
     });
 
-    function send(command) {
-      console.log(`You pressed: ${command}`);
-      socket.emit('message', command);
+    const socket = io();
+    const statusEl = document.getElementById('arduino-status');
+    const logEl = document.getElementById('log');
+    let activeCmd = null;
+
+    function log(msg) {
+      const li = document.createElement('li');
+      li.textContent = msg;
+      logEl.prepend(li);
+      while (logEl.children.length > 8) {
+        logEl.removeChild(logEl.lastChild);
+      }
     }
 
+    function updateStatus(serial) {
+      if (serial.connected) {
+        statusEl.textContent = `Arduino: connected (${serial.port})`;
+        statusEl.className = 'status online';
+      } else if (serial.available?.length) {
+        const paths = serial.available.map((p) => p.path).join(', ');
+        statusEl.textContent = `Arduino: offline — found ${paths}, none connected`;
+        statusEl.className = 'status offline';
+      } else {
+        statusEl.textContent = 'Arduino: not detected — plug USB into this machine';
+        statusEl.className = 'status offline';
+      }
+    }
+
+    socket.on('status', updateStatus);
+    socket.on('ack', ({ command, sent }) => {
+      if (!sent) log(`Failed: ${command} (Arduino not connected)`);
+    });
+
+    function drive(cmd) {
+      if (activeCmd === cmd) return;
+      activeCmd = cmd;
+      socket.emit('drive', cmd);
+      if (cmd !== 'stop') log(cmd);
+    }
+
+    function stopDrive() {
+      if (activeCmd === 'stop' || activeCmd === null) return;
+      activeCmd = 'stop';
+      socket.emit('drive', 'stop');
+    }
+
+    document.querySelectorAll('.dpad button[data-cmd]').forEach((btn) => {
+      const cmd = btn.dataset.cmd;
+
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        drive(cmd);
+      });
+      btn.addEventListener('mouseup', () => {
+        if (cmd !== 'stop') stopDrive();
+      });
+      btn.addEventListener('mouseleave', () => {
+        if (cmd !== 'stop') stopDrive();
+      });
+
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        drive(cmd);
+      }, { passive: false });
+      btn.addEventListener('touchend', () => {
+        if (cmd !== 'stop') stopDrive();
+      });
+      btn.addEventListener('touchcancel', () => {
+        if (cmd !== 'stop') stopDrive();
+      });
+    });
+
+    window.addEventListener('blur', stopDrive);
   </script>
 </body>
 

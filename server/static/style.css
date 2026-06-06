@@ -24,6 +24,36 @@
     text-align: center;
   }
 
+  .status {
+    font-size: 0.95rem;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--accent);
+  }
+
+  .status.online {
+    color: #b8e986;
+  }
+
+  .status.offline {
+    color: #e98686;
+  }
+
+  .hint {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  #log {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+    color: #aaa;
+    min-height: 1.2em;
+  }
+
   .video-container {
     width: 100%;
     max-width: 800px;
@@ -61,8 +91,10 @@
     transition: background 0.2s ease;
   }
 
-  .dpad button:hover {
-    background-color: var(--button-hover);
+  .dpad button:active,
+  .dpad button.active {
+    background-color: var(--accent);
+    color: var(--bg);
   }
 
   .dpad .empty {
