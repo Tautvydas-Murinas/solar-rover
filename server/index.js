@@ -8,6 +8,7 @@ const PORT = 8080;
 const CAMERA_STREAM_URL = process.env.CAMERA_STREAM_URL || 'http://127.0.0.1:8000/stream.mjpg';
 const SERIAL_PORT = process.env.SERIAL_PORT || null;
 const SERIAL_BAUD = Number(process.env.SERIAL_BAUD || 9600);
+const ARDUINO_BOOT_MS = Number(process.env.ARDUINO_BOOT_MS || 2500);
 
 const ARDUINO_VIDS = new Set(['2341', '2a03', '1b4f', '16c0', '0403']);
 const ARDUINO_MANUFACTURERS = /arduino|wch|ftdi|ch340|cp210/i;
@@ -39,6 +40,7 @@ const COMMAND_MAP = {
 
 let serialPort = null;
 let serialReady = false;
+let serialOpening = false;
 let activeSerialPort = SERIAL_PORT;
 let listedPorts = [];
 let io = null;
@@ -85,50 +87,80 @@ function logPortHelp() {
 }
 
 function openSerialPort(path) {
+  if (serialOpening) return;
   if (serialPort?.isOpen) {
     serialPort.close();
   }
 
+  serialOpening = true;
+  serialReady = false;
   activeSerialPort = path;
+  broadcastStatus();
+
   serialPort = new SerialPort({
     path,
     baudRate: SERIAL_BAUD,
     autoOpen: false,
   });
 
-  serialPort.open((err) => {
+  serialPort.open({ dtr: false }, (err) => {
     if (err) {
+      serialOpening = false;
       console.error(`Serial port ${path} not available: ${err.message}`);
-      serialReady = false;
       broadcastStatus();
+      setTimeout(initSerial, 5000);
       return;
     }
-    serialReady = true;
-    console.log(`Arduino connected on ${path} @ ${SERIAL_BAUD}`);
-    broadcastStatus();
+
+    serialPort.on('data', (data) => {
+      const line = data.toString().trim();
+      if (line) console.log(`Arduino: ${line}`);
+      if (line === 'READY' && !serialReady) {
+        serialOpening = false;
+        serialReady = true;
+        console.log(`Arduino ready on ${path} @ ${SERIAL_BAUD}`);
+        sendToArduino('S');
+        broadcastStatus();
+      }
+    });
+
+    console.log(`Serial open on ${path}, waiting for Arduino READY...`);
+    setTimeout(() => {
+      if (serialReady || !serialPort?.isOpen) return;
+      serialOpening = false;
+      serialReady = true;
+      console.log(`Arduino ready on ${path} (timeout fallback)`);
+      sendToArduino('S');
+      broadcastStatus();
+    }, ARDUINO_BOOT_MS);
   });
 
   serialPort.on('error', (err) => {
     console.error('Serial error:', err.message);
     serialReady = false;
+    serialOpening = false;
     broadcastStatus();
+    setTimeout(initSerial, 5000);
   });
 
   serialPort.on('close', () => {
-    console.warn('Serial port closed');
+    console.warn('Serial port closed — will retry');
     serialReady = false;
+    serialOpening = false;
     broadcastStatus();
+    setTimeout(initSerial, 5000);
   });
 }
 
 async function initSerial() {
+  if (serialReady || serialOpening) return;
+
   try {
     const ports = await listSerialPorts();
     const path = SERIAL_PORT || pickArduinoPort(ports);
 
     if (!path) {
       logPortHelp();
-      serialReady = false;
       broadcastStatus();
       setTimeout(initSerial, 5000);
       return;

@@ -1,77 +1,104 @@
+/*
+ * Solar Rover — MG996R 360° continuous rotation servos
+ *
+ * Wiring (signal pins):
+ *   Pin 7 — right wheels (front + rear right, same PWM signal)
+ *   Pin 8 — left wheels  (front + rear left,  same PWM signal)
+ *   Pin 9 — spare / unused (wire here only if you split rear axle later)
+ *
+ * Serial @ 9600 from Raspberry Pi (Node.js):
+ *   F = forward, B = backward, L = turn left, R = turn right, S = stop
+ *
+ * MG996R 360°: 90 = stop, further from 90 = faster spin
+ */
+
 #include <Servo.h>
 
-// MG996R 360° continuous rotation: 90 = stop, <90 / >90 = spin (direction depends on wiring)
-const int STOP = 90;
-const int FORWARD = 120;
-const int BACKWARD = 60;
+// --- Pin assignment ---
+const int PIN_RIGHT = 7;
+const int PIN_LEFT = 8;
 
-Servo rightFrontServo;
-Servo leftFrontServo;
-Servo rightRearServo;
-Servo leftRearServo;
+// --- Speed (calibrate if wheels creep or spin wrong way) ---
+const int STOP = 90;
+const int RIGHT_FORWARD = 120;
+const int RIGHT_BACKWARD = 60;
+const int LEFT_FORWARD = 60;   // opposite to right — servos mounted mirrored
+const int LEFT_BACKWARD = 120;
+
+Servo rightWheels;
+Servo leftWheels;
 
 void setup() {
   Serial.begin(9600);
 
-  rightFrontServo.attach(8);
-  leftFrontServo.attach(9);
-  rightRearServo.attach(10);
-  leftRearServo.attach(11);
+  rightWheels.attach(PIN_RIGHT);
+  leftWheels.attach(PIN_LEFT);
 
   stopAll();
+
+  // Handshake so Node.js knows firmware is alive after USB reset
+  Serial.println("READY");
 }
 
 void loop() {
-  if (Serial.available()) {
-    char command = Serial.read();
-    while (Serial.available()) {
-      Serial.read(); // discard extra bytes
-    }
+  if (!Serial.available()) {
+    return;
+  }
 
-    switch (command) {
-      case 'F':
-        moveForward();
-        break;
-      case 'B':
-        moveBackward();
-        break;
-      case 'L':
-        turnLeft();
-        break;
-      case 'R':
-        turnRight();
-        break;
-      case 'S':
-        stopAll();
-        break;
-    }
+  char command = Serial.read();
+  while (Serial.available()) {
+    Serial.read();
+  }
+
+  switch (command) {
+    case 'F':
+      moveForward();
+      Serial.println("OK F");
+      break;
+    case 'B':
+      moveBackward();
+      Serial.println("OK B");
+      break;
+    case 'L':
+      turnLeft();
+      Serial.println("OK L");
+      break;
+    case 'R':
+      turnRight();
+      Serial.println("OK R");
+      break;
+    case 'S':
+      stopAll();
+      Serial.println("OK S");
+      break;
+    default:
+      Serial.print("ERR ");
+      Serial.println(command);
+      break;
   }
 }
 
-// Front servos are mounted opposite to rear servos on this chassis
-void setWheels(int rightFront, int leftFront, int rightRear, int leftRear) {
-  rightFrontServo.write(rightFront);
-  leftFrontServo.write(leftFront);
-  rightRearServo.write(rightRear);
-  leftRearServo.write(leftRear);
+void setTracks(int right, int left) {
+  rightWheels.write(right);
+  leftWheels.write(left);
 }
 
 void moveForward() {
-  setWheels(FORWARD, FORWARD, BACKWARD, BACKWARD);
+  setTracks(RIGHT_FORWARD, LEFT_FORWARD);
 }
 
 void moveBackward() {
-  setWheels(BACKWARD, BACKWARD, FORWARD, FORWARD);
+  setTracks(RIGHT_BACKWARD, LEFT_BACKWARD);
 }
 
 void turnLeft() {
-  setWheels(FORWARD, BACKWARD, BACKWARD, FORWARD);
+  setTracks(RIGHT_FORWARD, LEFT_BACKWARD);
 }
 
 void turnRight() {
-  setWheels(BACKWARD, FORWARD, FORWARD, BACKWARD);
+  setTracks(RIGHT_BACKWARD, LEFT_FORWARD);
 }
 
 void stopAll() {
-  setWheels(STOP, STOP, STOP, STOP);
+  setTracks(STOP, STOP);
 }
