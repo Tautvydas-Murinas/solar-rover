@@ -74,6 +74,12 @@
     }
 
     socket.on('status', updateStatus);
+    socket.on('connect', () => {
+      fetch('/api/info')
+        .then((r) => r.json())
+        .then((info) => updateStatus(info.serial))
+        .catch(() => {});
+    });
     socket.on('ack', ({ command, sent }) => {
       if (!sent) log(`Failed: ${command} (Arduino not connected)`);
     });

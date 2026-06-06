@@ -21,49 +21,63 @@ sys.exit(1)
 "
 }
 
-echo "Starting camera stream (stream.py)..."
-python3 stream.py &
-STREAM_PID=$!
-trap 'kill "$STREAM_PID" 2>/dev/null' EXIT
+# Stop stale processes from a previous run
+pkill -f "python3 stream.py" 2>/dev/null || true
+pkill -f "node index.js" 2>/dev/null || true
+sleep 1
 
-echo "Waiting for camera (up to ${CAMERA_WAIT_SECS}s)..."
-ready=0
-for i in $(seq 1 "$CAMERA_WAIT_SECS"); do
-  set +e
-  err_msg=$(check_camera_health 2>&1)
-  code=$?
-  set -e
+if [ "${SKIP_CAMERA:-0}" = "1" ]; then
+  echo "Skipping camera (SKIP_CAMERA=1)"
+else
+  echo "Starting camera stream (stream.py)..."
+  python3 stream.py &
+  STREAM_PID=$!
+  trap 'kill "$STREAM_PID" 2>/dev/null' EXIT
 
-  if [ "$code" -eq 0 ]; then
-    ready=1
-    echo "Camera ready."
-    break
-  fi
-  if [ "$code" -eq 2 ]; then
-    echo "Camera error: $err_msg"
+  echo "Waiting for camera (up to ${CAMERA_WAIT_SECS}s)..."
+  ready=0
+  for i in $(seq 1 "$CAMERA_WAIT_SECS"); do
+    set +e
+    err_msg=$(check_camera_health 2>&1)
+    code=$?
+    set -e
+
+    if [ "$code" -eq 0 ]; then
+      ready=1
+      echo "Camera ready."
+      break
+    fi
+    if [ "$code" -eq 2 ]; then
+      echo "Camera error: $err_msg"
+      exit 1
+    fi
+
+    if [ $((i % 5)) -eq 0 ]; then
+      echo "  still waiting... (${i}s)"
+    fi
+    sleep 1
+  done
+
+  if [ "$ready" -ne 1 ]; then
+    echo "Camera did not become ready in ${CAMERA_WAIT_SECS}s."
+    echo "Run: python3 stream.py"
     exit 1
   fi
-
-  if [ $((i % 5)) -eq 0 ]; then
-    echo "  still waiting... (${i}s)"
-  fi
-  sleep 1
-done
-
-if [ "$ready" -ne 1 ]; then
-  echo "Camera did not become ready in ${CAMERA_WAIT_SECS}s."
-  echo "Run: python3 stream.py"
-  exit 1
 fi
 
 PI_IP=$(hostname -I | awk '{print $1}')
 echo "Starting control panel..."
 cd server
 
-if [ ! -d node_modules/socket.io ]; then
-  echo "Installing Node dependencies (first run)..."
+if [ ! -d node_modules/socket.io ] || [ ! -d node_modules/serialport ]; then
+  echo "Installing Node dependencies..."
   npm install
 fi
 
-echo "Open http://${PI_IP}:8080 in your browser"
+echo ""
+echo "============================================"
+echo "  Control panel: http://${PI_IP}:8080"
+echo "  Camera stream: http://${PI_IP}:8000/stream.mjpg"
+echo "============================================"
+echo ""
 npm start

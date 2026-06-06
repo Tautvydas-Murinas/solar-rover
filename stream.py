@@ -52,6 +52,14 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             return
 
         if path != STREAM_PATH:
+            if path == "/":
+                body = b"Camera MJPEG stream. Use the control panel at http://<host>:8080/"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             self.send_error(404)
             return
 
@@ -63,6 +71,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.send_error(503, "Camera still starting")
             return
 
+        logging.info("Stream client: %s", self.address_string())
         self.send_response(200)
         self.send_header("Age", 0)
         self.send_header("Cache-Control", "no-cache, private")
@@ -123,6 +132,8 @@ def main():
     httpd = StreamingServer((HOST, PORT), StreamingHandler)
     try:
         httpd.serve_forever()
+    except KeyboardInterrupt:
+        logging.info("Shutting down...")
     finally:
         if picam2 is not None:
             picam2.stop_recording()
