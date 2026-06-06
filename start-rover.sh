@@ -58,6 +58,12 @@ fi
 
 PI_IP=$(hostname -I | awk '{print $1}')
 echo "Starting control panel..."
-echo "Open http://${PI_IP}:8080 in your browser"
 cd server
-node index.js
+
+if [ ! -d node_modules/socket.io ]; then
+  echo "Installing Node dependencies (first run)..."
+  npm install
+fi
+
+echo "Open http://${PI_IP}:8080 in your browser"
+npm start
