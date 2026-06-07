@@ -103,36 +103,16 @@ function openSerialPort(path) {
     autoOpen: false,
   });
 
-  serialPort.open({ dtr: false }, (err) => {
-    if (err) {
-      serialOpening = false;
-      console.error(`Serial port ${path} not available: ${err.message}`);
-      broadcastStatus();
-      setTimeout(initSerial, 5000);
-      return;
-    }
-
-    serialPort.on('data', (data) => {
-      const line = data.toString().trim();
-      if (line) console.log(`Arduino: ${line}`);
-      if (line === 'READY' && !serialReady) {
-        serialOpening = false;
-        serialReady = true;
-        console.log(`Arduino ready on ${path} @ ${SERIAL_BAUD}`);
-        sendToArduino('S');
-        broadcastStatus();
-      }
-    });
-
-    console.log(`Serial open on ${path}, waiting for Arduino READY...`);
-    setTimeout(() => {
-      if (serialReady || !serialPort?.isOpen) return;
+  serialPort.on('data', (data) => {
+    const line = data.toString().trim();
+    if (line) console.log(`Arduino: ${line}`);
+    if (line === 'READY' && !serialReady) {
       serialOpening = false;
       serialReady = true;
-      console.log(`Arduino ready on ${path} (timeout fallback)`);
+      console.log(`Arduino ready on ${path} @ ${SERIAL_BAUD}`);
       sendToArduino('S');
       broadcastStatus();
-    }, ARDUINO_BOOT_MS);
+    }
   });
 
   serialPort.on('error', (err) => {
@@ -149,6 +129,26 @@ function openSerialPort(path) {
     serialOpening = false;
     broadcastStatus();
     setTimeout(initSerial, 5000);
+  });
+
+  serialPort.open((err) => {
+    if (err) {
+      serialOpening = false;
+      console.error(`Serial port ${path} not available: ${err.message}`);
+      broadcastStatus();
+      setTimeout(initSerial, 5000);
+      return;
+    }
+
+    console.log(`Serial open on ${path}, waiting for Arduino READY...`);
+    setTimeout(() => {
+      if (serialReady || !serialPort?.isOpen) return;
+      serialOpening = false;
+      serialReady = true;
+      console.log(`Arduino ready on ${path} (timeout fallback)`);
+      sendToArduino('S');
+      broadcastStatus();
+    }, ARDUINO_BOOT_MS);
   });
 }
 
