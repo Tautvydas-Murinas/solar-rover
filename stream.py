@@ -80,9 +80,12 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         self.end_headers()
         try:
             while True:
+                frame = None
                 with output.condition:
-                    output.condition.wait()
                     frame = output.frame
+                    if not frame:
+                        output.condition.wait(timeout=5)
+                        frame = output.frame
                 if not frame:
                     continue
                 self.wfile.write(b"--FRAME\r\n")
@@ -90,6 +93,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                 self.wfile.write(f"Content-Length: {len(frame)}\r\n\r\n".encode())
                 self.wfile.write(frame)
                 self.wfile.write(b"\r\n")
+                self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass
 

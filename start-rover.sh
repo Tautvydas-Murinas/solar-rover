@@ -22,7 +22,7 @@ sys.exit(1)
 }
 
 # Stop stale processes from a previous run
-pkill -f "python3 stream.py" 2>/dev/null || true
+pkill -f "stream.py" 2>/dev/null || true
 pkill -f "node index.js" 2>/dev/null || true
 sleep 1
 
