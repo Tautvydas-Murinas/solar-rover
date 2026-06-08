@@ -21,6 +21,7 @@ function getStatus() {
       port: activeSerialPort,
       baud: SERIAL_BAUD,
       connected: serialReady,
+      opening: serialOpening,
       available: listedPorts,
     },
   };
@@ -41,7 +42,7 @@ const COMMAND_MAP = {
 let serialPort = null;
 let serialReady = false;
 let serialOpening = false;
-let activeSerialPort = SERIAL_PORT;
+let activeSerialPort = null;
 let listedPorts = [];
 let io = null;
 
@@ -86,6 +87,15 @@ function logPortHelp() {
   }
 }
 
+function markArduinoReady(path) {
+  serialOpening = false;
+  serialReady = true;
+  activeSerialPort = path;
+  console.log(`Arduino ready on ${path} @ ${SERIAL_BAUD}`);
+  sendToArduino('S');
+  broadcastStatus();
+}
+
 function openSerialPort(path) {
   if (serialOpening) return;
   if (serialPort?.isOpen) {
@@ -106,12 +116,8 @@ function openSerialPort(path) {
   serialPort.on('data', (data) => {
     const line = data.toString().trim();
     if (line) console.log(`Arduino: ${line}`);
-    if (line === 'READY' && !serialReady) {
-      serialOpening = false;
-      serialReady = true;
-      console.log(`Arduino ready on ${path} @ ${SERIAL_BAUD}`);
-      sendToArduino('S');
-      broadcastStatus();
+    if (!serialReady && line.includes('READY')) {
+      markArduinoReady(path);
     }
   });
 
@@ -124,7 +130,7 @@ function openSerialPort(path) {
   });
 
   serialPort.on('close', () => {
-    console.warn('Serial port closed — will retry');
+    console.warn('Serial port closed');
     serialReady = false;
     serialOpening = false;
     broadcastStatus();
@@ -134,20 +140,19 @@ function openSerialPort(path) {
   serialPort.open((err) => {
     if (err) {
       serialOpening = false;
+      activeSerialPort = null;
       console.error(`Serial port ${path} not available: ${err.message}`);
       broadcastStatus();
       setTimeout(initSerial, 5000);
       return;
     }
 
-    console.log(`Serial open on ${path}, waiting for Arduino READY...`);
+    console.log(`Serial open on ${path}, waiting for READY from firmware...`);
     setTimeout(() => {
       if (serialReady || !serialPort?.isOpen) return;
+      console.warn(`No READY on ${path} — upload rover_controller.ino to Arduino`);
       serialOpening = false;
-      serialReady = true;
-      console.log(`Arduino ready on ${path} (timeout fallback)`);
-      sendToArduino('S');
-      broadcastStatus();
+      serialPort.close();
     }, ARDUINO_BOOT_MS);
   });
 }
@@ -160,7 +165,16 @@ async function initSerial() {
     const path = SERIAL_PORT || pickArduinoPort(ports);
 
     if (!path) {
+      activeSerialPort = null;
       logPortHelp();
+      broadcastStatus();
+      setTimeout(initSerial, 5000);
+      return;
+    }
+
+    const stillThere = ports.some((p) => p.path === path);
+    if (!stillThere) {
+      activeSerialPort = null;
       broadcastStatus();
       setTimeout(initSerial, 5000);
       return;
@@ -176,6 +190,33 @@ async function initSerial() {
     setTimeout(initSerial, 5000);
   }
 }
+
+async function monitorSerialHealth() {
+  if (!serialReady && !serialPort?.isOpen) return;
+
+  try {
+    const ports = await listSerialPorts();
+    listedPorts = ports.map((p) => ({
+      path: p.path,
+      manufacturer: p.manufacturer || '',
+      vendorId: p.vendorId || '',
+      productId: p.productId || '',
+    }));
+
+    if (activeSerialPort && !ports.some((p) => p.path === activeSerialPort)) {
+      console.warn('Arduino USB unplugged');
+      serialReady = false;
+      serialOpening = false;
+      activeSerialPort = null;
+      if (serialPort?.isOpen) serialPort.close();
+      broadcastStatus();
+    }
+  } catch (err) {
+    console.error('Serial health check failed:', err.message);
+  }
+}
+
+setInterval(monitorSerialHealth, 2000);
 
 function sendToArduino(cmd) {
   if (!serialReady || !serialPort?.isOpen) {

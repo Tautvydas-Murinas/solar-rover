@@ -14,6 +14,7 @@
 
   <h1>Rover Control Panel</h1>
 
+  <p id="camera-status" class="status offline">Camera: checking…</p>
   <p id="arduino-status" class="status offline">Arduino: checking…</p>
 
   <div class="video-container">
@@ -38,12 +39,49 @@
 
   <script>
     const streamImg = document.getElementById('stream');
+    const cameraStatusEl = document.getElementById('camera-status');
+
+    function loadStream() {
+      streamImg.src = `/stream.mjpg?ts=${Date.now()}`;
+    }
+
     streamImg.addEventListener('error', () => {
-      const fallback = `${location.protocol}//${location.hostname}:8000/stream.mjpg`;
-      if (streamImg.src !== fallback) {
+      const fallback = `${location.protocol}//${location.hostname}:8000/stream.mjpg?ts=${Date.now()}`;
+      if (!streamImg.src.startsWith(fallback.split('?')[0])) {
+        console.warn('Proxy failed, trying port 8000');
         streamImg.src = fallback;
+      } else {
+        cameraStatusEl.textContent = 'Camera: stream failed — is stream.py running?';
+        cameraStatusEl.className = 'status offline';
       }
     });
+
+    streamImg.addEventListener('load', () => {
+      cameraStatusEl.textContent = 'Camera: live';
+      cameraStatusEl.className = 'status online';
+    });
+
+    async function checkCamera() {
+      try {
+        const r = await fetch(`http://${location.hostname}:8000/health`);
+        const data = await r.json();
+        if (data.ready) {
+          cameraStatusEl.textContent = 'Camera: ready';
+          cameraStatusEl.className = 'status online';
+          loadStream();
+        } else if (data.error) {
+          cameraStatusEl.textContent = `Camera: ${data.error}`;
+          cameraStatusEl.className = 'status offline';
+        } else {
+          cameraStatusEl.textContent = 'Camera: starting…';
+        }
+      } catch {
+        cameraStatusEl.textContent = 'Camera: offline — run ./start-rover.sh';
+        cameraStatusEl.className = 'status offline';
+      }
+    }
+
+    checkCamera();
 
     const socket = io();
     const statusEl = document.getElementById('arduino-status');
@@ -63,12 +101,14 @@
       if (serial.connected) {
         statusEl.textContent = `Arduino: connected (${serial.port})`;
         statusEl.className = 'status online';
+      } else if (serial.opening) {
+        statusEl.textContent = `Arduino: waiting for firmware on ${serial.port}…`;
+        statusEl.className = 'status offline';
       } else if (serial.available?.length) {
-        const paths = serial.available.map((p) => p.path).join(', ');
-        statusEl.textContent = `Arduino: offline — found ${paths}, none connected`;
+        statusEl.textContent = 'Arduino: port found, not connected — upload .ino & plug in USB';
         statusEl.className = 'status offline';
       } else {
-        statusEl.textContent = 'Arduino: not detected — plug USB into this machine';
+        statusEl.textContent = 'Arduino: not detected — plug USB into Pi';
         statusEl.className = 'status offline';
       }
     }

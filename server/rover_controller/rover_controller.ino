@@ -1,42 +1,46 @@
 /*
- * Solar Rover — MG996R 360° continuous rotation servos
+ * Solar Rover — MG996R 360° continuous rotation servo
  *
- * Wiring (signal pins):
- *   Pin 7 — right wheels (front + rear right, same PWM signal)
- *   Pin 8 — left wheels  (front + rear left,  same PWM signal)
- *   Pin 9 — spare / unused (wire here only if you split rear axle later)
+ * CURRENT WIRING: one servo signal on pin 7 only
+ *   Pin 7 — servo signal (orange/yellow)
+ *   Servo +5V and GND → separate power supply (not Arduino 5V for MG996)
+ *
+ * IMPORTANT: git pull on the Pi does NOT update this sketch.
+ *            You must upload to Arduino after changing this file:
+ *              cd server/rover_controller
+ *              arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno .
  *
  * Serial @ 9600 from Raspberry Pi (Node.js):
- *   F = forward, B = backward, L = turn left, R = turn right, S = stop
- *
- * MG996R 360°: 90 = stop, further from 90 = faster spin
+ *   F = forward, B = backward, L/R = spin (test), S = stop
  */
 
 #include <Servo.h>
 
-// --- Pin assignment ---
-const int PIN_RIGHT = 7;
+// Set to 0 when you add a second servo on pin 8
+#define SINGLE_MOTOR 1
+
+const int PIN_MOTOR = 7;
 const int PIN_LEFT = 8;
 
-// --- Speed (calibrate if wheels creep or spin wrong way) ---
+// MG996R 360°: 90 = stop. If motor creeps at rest, try 88 or 92.
 const int STOP = 90;
-const int RIGHT_FORWARD = 120;
-const int RIGHT_BACKWARD = 60;
-const int LEFT_FORWARD = 60;   // opposite to right — servos mounted mirrored
-const int LEFT_BACKWARD = 120;
+const int FORWARD = 120;
+const int BACKWARD = 60;
 
-Servo rightWheels;
-Servo leftWheels;
+Servo motor;
+#if !SINGLE_MOTOR
+Servo leftMotor;
+#endif
 
 void setup() {
   Serial.begin(9600);
 
-  rightWheels.attach(PIN_RIGHT);
-  leftWheels.attach(PIN_LEFT);
+  motor.attach(PIN_MOTOR);
+#if !SINGLE_MOTOR
+  leftMotor.attach(PIN_LEFT);
+#endif
 
   stopAll();
-
-  // Handshake so Node.js knows firmware is alive after USB reset
   Serial.println("READY");
 }
 
@@ -78,27 +82,49 @@ void loop() {
   }
 }
 
-void setTracks(int right, int left) {
-  rightWheels.write(right);
-  leftWheels.write(left);
+void driveMotor(int speed) {
+  motor.write(speed);
 }
 
 void moveForward() {
-  setTracks(RIGHT_FORWARD, LEFT_FORWARD);
+#if SINGLE_MOTOR
+  driveMotor(FORWARD);
+#else
+  motor.write(FORWARD);
+  leftMotor.write(BACKWARD);
+#endif
 }
 
 void moveBackward() {
-  setTracks(RIGHT_BACKWARD, LEFT_BACKWARD);
+#if SINGLE_MOTOR
+  driveMotor(BACKWARD);
+#else
+  motor.write(BACKWARD);
+  leftMotor.write(FORWARD);
+#endif
 }
 
 void turnLeft() {
-  setTracks(RIGHT_FORWARD, LEFT_BACKWARD);
+#if SINGLE_MOTOR
+  driveMotor(FORWARD);  // single motor: same spin for test
+#else
+  motor.write(FORWARD);
+  leftMotor.write(FORWARD);
+#endif
 }
 
 void turnRight() {
-  setTracks(RIGHT_BACKWARD, LEFT_FORWARD);
+#if SINGLE_MOTOR
+  driveMotor(BACKWARD);
+#else
+  motor.write(BACKWARD);
+  leftMotor.write(BACKWARD);
+#endif
 }
 
 void stopAll() {
-  setTracks(STOP, STOP);
+  driveMotor(STOP);
+#if !SINGLE_MOTOR
+  leftMotor.write(STOP);
+#endif
 }
