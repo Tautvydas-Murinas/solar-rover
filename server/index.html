@@ -102,10 +102,11 @@
         statusEl.textContent = `Arduino: connected (${serial.port})`;
         statusEl.className = 'status online';
       } else if (serial.opening) {
-        statusEl.textContent = `Arduino: waiting for firmware on ${serial.port}…`;
+        statusEl.textContent = `Arduino: connecting to ${serial.port}…`;
         statusEl.className = 'status offline';
       } else if (serial.available?.length) {
-        statusEl.textContent = 'Arduino: port found, not connected — upload .ino & plug in USB';
+        const p = serial.port || serial.available[0]?.path || 'USB';
+        statusEl.textContent = `Arduino: ${p} seen — upload rover_controller.ino from PC`;
         statusEl.className = 'status offline';
       } else {
         statusEl.textContent = 'Arduino: not detected — plug USB into Pi';

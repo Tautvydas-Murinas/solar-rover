@@ -8,7 +8,7 @@ const PORT = 8080;
 const CAMERA_STREAM_URL = process.env.CAMERA_STREAM_URL || 'http://127.0.0.1:8000/stream.mjpg';
 const SERIAL_PORT = process.env.SERIAL_PORT || null;
 const SERIAL_BAUD = Number(process.env.SERIAL_BAUD || 9600);
-const ARDUINO_BOOT_MS = Number(process.env.ARDUINO_BOOT_MS || 2500);
+const ARDUINO_BOOT_MS = Number(process.env.ARDUINO_BOOT_MS || 8000);
 
 const ARDUINO_VIDS = new Set(['2341', '2a03', '1b4f', '16c0', '0403']);
 const ARDUINO_MANUFACTURERS = /arduino|wch|ftdi|ch340|cp210/i;
@@ -150,7 +150,7 @@ function openSerialPort(path) {
     console.log(`Serial open on ${path}, waiting for READY from firmware...`);
     setTimeout(() => {
       if (serialReady || !serialPort?.isOpen) return;
-      console.warn(`No READY on ${path} — upload rover_controller.ino to Arduino`);
+      console.warn(`No READY on ${path} — retrying (upload rover_controller.ino if this keeps failing)`);
       serialOpening = false;
       serialPort.close();
     }, ARDUINO_BOOT_MS);

@@ -1,0 +1,13 @@
+# Arduino CLI config for this sketch
+# Usage (from this folder):
+#   arduino-cli compile .
+#   arduino-cli upload -p /dev/ttyACM0 .
+#
+# Change fqbn below if you use a different board:
+#   Uno:              arduino:avr:uno
+#   Nano (new):       arduino:avr:nano:cpu=atmega328
+#   Nano (old clone): arduino:avr:nano:cpu=atmega328old
+#   Mega:             arduino:avr:mega:cpu=atmega2560
+
+board:
+  fqbn: arduino:avr:uno

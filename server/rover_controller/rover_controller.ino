@@ -34,6 +34,7 @@ Servo leftMotor;
 
 void setup() {
   Serial.begin(9600);
+  delay(800);  // let USB-serial stabilize after Pi connects
 
   motor.attach(PIN_MOTOR);
 #if !SINGLE_MOTOR
@@ -45,6 +46,13 @@ void setup() {
 }
 
 void loop() {
+  // Re-send until Pi hears us (missed on USB reset)
+  static unsigned long lastReady = 0;
+  if (millis() - lastReady > 3000) {
+    Serial.println("READY");
+    lastReady = millis();
+  }
+
   if (!Serial.available()) {
     return;
   }
