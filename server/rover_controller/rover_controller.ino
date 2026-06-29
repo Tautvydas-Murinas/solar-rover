@@ -1,52 +1,56 @@
 /*
- * Solar Rover — MG996R 360° continuous rotation servo
+ * Solar Rover — 4× MG996R 360° continuous rotation servos (one per wheel)
  *
- * CURRENT WIRING: one servo signal on pin 7 only
- *   Pin 7 — servo signal (orange/yellow)
- *   Servo +5V and GND → separate power supply (not Arduino 5V for MG996)
+ * Signal pins (change below if your wiring differs):
+ *   Pin 7  — front right wheel
+ *   Pin 8  — front left wheel
+ *   Pin 9  — rear right wheel
+ *   Pin 10 — rear left wheel
  *
- * IMPORTANT: git pull on the Pi does NOT update this sketch.
- *            You must upload to Arduino after changing this file:
- *              cd server/rover_controller
- *              arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno .
+ * Power: use external 5–6V for servos (not Arduino 5V pin for 4× MG996).
+ * GND: Arduino GND must connect to servo power GND.
  *
- * Serial @ 9600 from Raspberry Pi (Node.js):
- *   F = forward, B = backward, L/R = spin (test), S = stop
+ * Upload after every change (git pull does NOT update Arduino):
+ *   Arduino IDE: Tools → Board → Uno, then Upload
+ *
+ * Serial @ 9600: F=forward B=backward L=left R=right S=stop
  */
 
 #include <Servo.h>
 
-// Set to 0 when you add a second servo on pin 8
-#define SINGLE_MOTOR 1
+// --- Servo signal pins ---
+const int PIN_FRONT_RIGHT = 7;
+const int PIN_FRONT_LEFT  = 8;
+const int PIN_REAR_RIGHT  = 9;
+const int PIN_REAR_LEFT   = 10;
 
-const int PIN_MOTOR = 7;
-const int PIN_LEFT = 8;
-
-// MG996R 360°: 90 = stop. If motor creeps at rest, try 88 or 92.
+// --- Speed (tune if wheels creep or spin wrong way) ---
 const int STOP = 90;
-const int FORWARD = 120;
-const int BACKWARD = 60;
+const int SPIN_FWD = 120;
+const int SPIN_REV = 60;
 
-Servo motor;
-#if !SINGLE_MOTOR
-Servo leftMotor;
-#endif
+// Set to 1 if rear servos are mounted opposite to front (common)
+#define MIRROR_REAR 1
+
+Servo frontRight;
+Servo frontLeft;
+Servo rearRight;
+Servo rearLeft;
 
 void setup() {
   Serial.begin(9600);
-  delay(800);  // let USB-serial stabilize after Pi connects
+  delay(800);
 
-  motor.attach(PIN_MOTOR);
-#if !SINGLE_MOTOR
-  leftMotor.attach(PIN_LEFT);
-#endif
+  frontRight.attach(PIN_FRONT_RIGHT);
+  frontLeft.attach(PIN_FRONT_LEFT);
+  rearRight.attach(PIN_REAR_RIGHT);
+  rearLeft.attach(PIN_REAR_LEFT);
 
   stopAll();
   Serial.println("READY");
 }
 
 void loop() {
-  // Re-send until Pi hears us (missed on USB reset)
   static unsigned long lastReady = 0;
   if (millis() - lastReady > 3000) {
     Serial.println("READY");
@@ -90,49 +94,38 @@ void loop() {
   }
 }
 
-void driveMotor(int speed) {
-  motor.write(speed);
+int rearSpeed(int forwardSpeed) {
+#if MIRROR_REAR
+  return forwardSpeed == SPIN_FWD ? SPIN_REV : SPIN_FWD;
+#else
+  return forwardSpeed;
+#endif
+}
+
+void setWheels(int fr, int fl, int rr, int rl) {
+  frontRight.write(fr);
+  frontLeft.write(fl);
+  rearRight.write(rr);
+  rearLeft.write(rl);
 }
 
 void moveForward() {
-#if SINGLE_MOTOR
-  driveMotor(FORWARD);
-#else
-  motor.write(FORWARD);
-  leftMotor.write(BACKWARD);
-#endif
+  setWheels(SPIN_FWD, SPIN_FWD, rearSpeed(SPIN_FWD), rearSpeed(SPIN_FWD));
 }
 
 void moveBackward() {
-#if SINGLE_MOTOR
-  driveMotor(BACKWARD);
-#else
-  motor.write(BACKWARD);
-  leftMotor.write(FORWARD);
-#endif
+  setWheels(SPIN_REV, SPIN_REV, rearSpeed(SPIN_REV), rearSpeed(SPIN_REV));
 }
 
 void turnLeft() {
-#if SINGLE_MOTOR
-  driveMotor(FORWARD);  // single motor: same spin for test
-#else
-  motor.write(FORWARD);
-  leftMotor.write(FORWARD);
-#endif
+  // tank turn: right wheels forward, left wheels backward
+  setWheels(SPIN_FWD, SPIN_REV, rearSpeed(SPIN_FWD), rearSpeed(SPIN_REV));
 }
 
 void turnRight() {
-#if SINGLE_MOTOR
-  driveMotor(BACKWARD);
-#else
-  motor.write(BACKWARD);
-  leftMotor.write(BACKWARD);
-#endif
+  setWheels(SPIN_REV, SPIN_FWD, rearSpeed(SPIN_REV), rearSpeed(SPIN_FWD));
 }
 
 void stopAll() {
-  driveMotor(STOP);
-#if !SINGLE_MOTOR
-  leftMotor.write(STOP);
-#endif
+  setWheels(STOP, STOP, STOP, STOP);
 }
